@@ -8,7 +8,7 @@
 * | Date        :   2018-11-09
 * | Info        :
 * 1.Remove:ImageBuff[EPD_HEIGHT * EPD_WIDTH / 8]
-* 2.Change:EPD_Display(UBYTE *Image)
+* 2.Change:EPD_Display(uint8_t *Image)
 *   Need to pass parameters: pointer to cached data
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy

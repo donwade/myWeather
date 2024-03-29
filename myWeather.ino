@@ -14,7 +14,9 @@
  * created 30/04/2018 by Alistair Symonds
  */
 
- void Wait4Idle(uint32_t line);
+void Wait4Idle(uint32_t line);
+extern int displayTest(void);
+#define LINE  printf("%s:%d\n", __FUNCTION__, __LINE__)
 
 #include <SPI.h>
 
@@ -60,29 +62,36 @@ void setup() {
     pinMode(VSPI_DC, OUTPUT);     // set data/command pin to output mode
     pinMode(VSPI_BUSY, INPUT);    // set data/command pin to output mode
     printf("\n");
+    while(true)
+    {
 
-    displayInit();
-    printf("%s:%d\n", __FUNCTION__, __LINE__);
+        displayInit();
+        printf("%s:%d\n", __FUNCTION__, __LINE__);
 
-    Wait4Idle(__LINE__);
+        Wait4Idle(__LINE__);
 
-    displayClearBlack();
-    printf("%s:%d\n", __FUNCTION__, __LINE__);
-    Wait4Idle(__LINE__);
-    delay(5000);
+        displayClearBlack();
+        printf("%s:%d\n", __FUNCTION__, __LINE__);
+        Wait4Idle(__LINE__);
+        delay(5000);
 
-    displayClearRed();
-    printf("%s:%d\n", __FUNCTION__, __LINE__);
-    Wait4Idle(__LINE__);
-    delay(1000);
+        displayClearRed();
+        printf("%s:%d\n", __FUNCTION__, __LINE__);
+        Wait4Idle(__LINE__);
+        delay(1000);
 
-    Serial.println();
-    Serial.println("HI MOM");
-    printf("built on %s %s\n", __DATE__, __TIME__);
+        Serial.println();
+        Serial.println("HI MOM");
+        printf("built on %s %s\n", __DATE__, __TIME__);
 
-    printf("shutting down in 10 seconds\n");
-    displaySleep();
+        displayTest();
 
+        displaySleep();
+        LINE;
+        printf("shutting down in 10 seconds\n");
+        delay(10000);
+        printf("here we go again....\n");
+     }
 }
 
 // the loop function runs over and over again until power down or reset
@@ -105,16 +114,23 @@ void doSpiXfer(SPIClass *spi, uint8_t data)
 //---------------------------------------------------------------------------------------
 void sendCommand(uint8_t data)
 {
-    //printf("%s %d 0x%X\n", __FUNCTION__, data, data);
+    static uint32_t cnt;
+    cnt++;
+    while( digitalRead(VSPI_BUSY) == 0);
+
     digitalWrite(VSPI_DC, 0);
+    printf("%s #%d %d 0x%X\n", __FUNCTION__, cnt, data, data);
     doSpiXfer(vspi,data);
-    //digitalWrite(VSPI_DC, 1); // not really needed
+    digitalWrite(VSPI_DC, 1); // not really needed
 }
 void sendData(uint8_t data)
 {
-    //digitalWrite(VSPI_DC, 0);  // debug only for scope (not really needed)
+    static uint32_t cnt;
+    while( digitalRead(VSPI_BUSY) == 0);
+    cnt++;
+    digitalWrite(VSPI_DC, 0);  // debug only for scope (not really needed)
     digitalWrite(VSPI_DC, 1);
-    //printf("%s %d 0x%X\n", __FUNCTION__, data, data);
+    //printf("%s #%d  %d 0x%X\n", __FUNCTION__, cnt, data, data);
     doSpiXfer(vspi,data);
 }
 
@@ -173,7 +189,7 @@ function :	send command
 parameter:
      Reg : Command register
 ******************************************************************************/
-//static void EPD_7IN5B_V2_SendCommand(UBYTE Reg)/
+//static void EPD_7IN5B_V2_SendCommand(uint8_t Reg)/
 //{
 //    digitalWrite(EPD_DC_PIN, 0);
 //    digitalWrite(EPD_CS_PIN, 0);
@@ -186,7 +202,7 @@ function :	send data
 parameter:
     Data : Write data
 ******************************************************************************/
-//static void EPD_7IN5B_V2_SendData(UBYTE Data)
+//static void EPD_7IN5B_V2_SendData(uint8_t Data)
 //{
 //    digitalWrite(EPD_DC_PIN, 1);
 //   digitalWrite(EPD_CS_PIN, 0);
@@ -232,8 +248,10 @@ parameter:
 ******************************************************************************/
 static void displayTurnOn(void)
 {
-    sendCommand(0x12);	//DISPLAY REFRESH
-    delay(100);	        //!!!The delay here is necessary, 200uS at least!!!
+    digitalWrite(VSPI_POWER, 1);// apply power to the display
+    printf ("display turn on / refresh\n");
+    sendCommand(0x12);	        //DISPLAY REFRESH
+    delay(100);	                //!!!The delay here is necessary, 200uS at least!!!
     Wait4Idle(__LINE__);
 }
 
@@ -298,11 +316,13 @@ void displayClear(void)
     Height = EPD_7IN5B_V2_HEIGHT;
 
     uint32_t i;
+    printf ("clear black \n");
     sendCommand(0x10);
     for(i=0; i<Width*Height; i++) {
         sendData(0xff);
 
     }
+    printf ("clear red \n");
     sendCommand(0x13);
     for(i=0; i<Width*Height; i++)	{
         sendData(0x00);
@@ -314,6 +334,8 @@ void displayClear(void)
 void displayClearRed(void)
 {
     uint32_t Width, Height;
+    printf("%s:%d\n", __FUNCTION__, __LINE__);
+
     Width =(EPD_7IN5B_V2_WIDTH % 8 == 0)?(EPD_7IN5B_V2_WIDTH / 8 ):(EPD_7IN5B_V2_WIDTH / 8 + 1);
     Height = EPD_7IN5B_V2_HEIGHT;
 
@@ -334,6 +356,9 @@ void displayClearRed(void)
 void displayClearBlack(void)
 {
     uint32_t Width, Height;
+
+    printf("%s:%d\n", __FUNCTION__, __LINE__);
+
     Width =(EPD_7IN5B_V2_WIDTH % 8 == 0)?(EPD_7IN5B_V2_WIDTH / 8 ):(EPD_7IN5B_V2_WIDTH / 8 + 1);
     Height = EPD_7IN5B_V2_HEIGHT;
 
@@ -385,13 +410,18 @@ parameter:
 ******************************************************************************/
 void displaySleep(void)
 {
+    LINE;
     sendCommand(0X02);  	//power off
+    LINE;
     Wait4Idle(__LINE__);
+    LINE;
     sendCommand(0X07);  	//deep sleep
+    LINE;
     sendData(0xA5);
+    LINE;
 
-    printf("%s sleeping\n", __FUNCTION__);
+    printf("%s h/w power down\n", __FUNCTION__);
     digitalWrite(VSPI_POWER, 0);     // remove display power
-
+    LINE;
 
 }
