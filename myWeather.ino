@@ -22,6 +22,7 @@ extern int displayTest(void);
 
 #define DEBUG 1
 #include "Debug.h"
+#define NS  1000000000ULL // ns in a second
 
 // Define ALTERNATE_PINS to use non-standard GPIO pins for SPI bus
 #define ALTERNATE_PINS
@@ -42,7 +43,7 @@ extern int displayTest(void);
 #endif
 
 #define Debug printf
-static const int spiClk = 1000000; // 1 MHz 10Mhz TOOO FAST
+static const int spiClk = 1000000; // 2MHz=no change 10Mhz=FAIL
 
 //uninitalised pointers to SPI objects
 SPIClass * vspi = NULL;
@@ -419,16 +420,23 @@ static void displayTurnOn(void)
     digitalWrite(VSPI_POWER, 1);// ensure power to the display
     Debug ("\n%s : start painting hardware\n", __FUNCTION__);
 
+    struct timespec start, finish;
+    clock_gettime(CLOCK_REALTIME, &start);
+
     sendCommand(0x12);	        //DISPLAY REFRESH
+
 
     // allow the display to paint, it can take up to 26 seconds.
     // this way when returning to caller, any "delay calls" will be from the
     // time the display is finished physically updating.
 
     Wait4Idle();                //let the display paint!!!
-    Debug ("%s : display physically repainted\n\n", __FUNCTION__);
 
-    WAIT4USER();
+    clock_gettime(CLOCK_REALTIME, &finish);
+    unsigned long long elapsed = ( (finish.tv_sec * NS + finish.tv_nsec)  - (start.tv_sec * NS + start.tv_nsec));
+
+    Debug("\t\t>>>>>>>>>>>> %s : repainted in %lu mS\n\n", __FUNCTION__ , elapsed/1000000UL);
+
 }
 
 /******************************************************************************
@@ -504,6 +512,9 @@ void setWhiteBuffer(uint8_t brightness) // 0 = white
     uint32_t Width, Height;
     Debug("%s set white intensity to %d\n", __FUNCTION__, brightness);
 
+    struct timespec start={0,0}, finish={0,0};
+    clock_gettime(CLOCK_REALTIME,&start);
+
     Width =(EPD_7IN5B_V2_WIDTH % 8 == 0)?(EPD_7IN5B_V2_WIDTH / 8 ):(EPD_7IN5B_V2_WIDTH / 8 + 1);
     Height = EPD_7IN5B_V2_HEIGHT;
 
@@ -513,6 +524,11 @@ void setWhiteBuffer(uint8_t brightness) // 0 = white
         sendData(brightness);
 
     }
+
+    clock_gettime(CLOCK_REALTIME,&finish);
+    unsigned long long elapsed = ( (finish.tv_sec * NS + finish.tv_nsec)  - start.tv_sec * NS + start.tv_nsec);
+    Debug("\t\t>>>>>>>>>>>> %s : busy for %lu mS\r\n", __FUNCTION__ , elapsed/1000000UL);
+
 }
 
 
