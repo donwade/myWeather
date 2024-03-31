@@ -104,8 +104,8 @@ void Paint_NewImage(uint8_t *image, uint32_t Width, uint32_t Height, uint32_t Ro
     Paint.Scale = 2;
     Paint.WidthByte = (Width % 8 == 0)? (Width / 8 ): (Width / 8 + 1);
     Paint.HeightByte = Height;
-    printf("WidthByte = %d, HeightByte = %d\r\n", Paint.WidthByte, Paint.HeightByte);
-    printf(" EPD_WIDTH / 8 = %d\r\n",  122 / 8);
+    Debug("WidthByte = %d, HeightByte = %d\r\n", Paint.WidthByte, Paint.HeightByte);
+    Debug(" EPD_WIDTH / 8 = %d\r\n",  122 / 8);
 
     Paint.Rotate = Rotate;
     Paint.Mirror = MIRROR_NONE;

@@ -34,11 +34,9 @@
 
 int displayTest(void)
 {
-    printf("epaper test by WaveShare\r\n");
+    Debug("epaper test by WaveShare\r\n");
 
-    //displayInit(); done earlier
-
-    displayClear();
+    clearToAllWhite();
 	delay(2000);
 
     //Create a new image cache named IMAGE_BW and fill it with white
@@ -47,16 +45,16 @@ int displayTest(void)
     uint32_t Imagesize = ((EPD_7IN5B_V2_WIDTH % 8 == 0)? (EPD_7IN5B_V2_WIDTH / 8 ): (EPD_7IN5B_V2_WIDTH / 8 + 1)) * EPD_7IN5B_V2_HEIGHT;
 
     if((BlackImage = (uint8_t *)malloc(Imagesize)) == NULL) {
-        printf("Failed to apply for black memory...\r\n");
+        Debug("Failed to apply for black memory...\r\n");
         return -1;
     }
 
     if((RYImage = (uint8_t *)malloc(Imagesize)) == NULL) {
-        printf("Failed to apply for red memory...\r\n");
+        Debug("Failed to apply for red memory...\r\n");
         return -1;
     }
 
-    printf("NewImage:BlackImage and RYImage\r\n");
+    Debug("NewImage:BlackImage and RYImage\r\n");
     Paint_NewImage(BlackImage, EPD_7IN5B_V2_WIDTH, EPD_7IN5B_V2_HEIGHT , 0, WHITE);
     Paint_NewImage(RYImage, EPD_7IN5B_V2_WIDTH, EPD_7IN5B_V2_HEIGHT , 0, WHITE);
 
@@ -68,7 +66,7 @@ int displayTest(void)
 
 #if 0   // show bmp
 	# no sd card or fs on my system.
-    printf("show window BMP-----------------\r\n");
+    Debug("show window BMP-----------------\r\n");
     Paint_SelectImage(BlackImage);
     GUI_ReadBmp("./pic/2in9.bmp", 50, 100);
     Paint_SelectImage(RYImage);
@@ -77,7 +75,7 @@ int displayTest(void)
     displayImages(BlackImage, RYImage);
     delay(2000);
 
-    printf("show red bmp------------------------\r\n");
+    Debug("show red bmp------------------------\r\n");
     Paint_SelectImage(BlackImage);
     GUI_ReadBmp("./pic/7in5_V2_b.bmp", 0, 0);
     Paint_SelectImage(RYImage);
@@ -87,10 +85,10 @@ int displayTest(void)
 #endif
 
 #if 1   // show image for array
-    printf("enter: show image for array\r\n");
+    Debug("enter: show image for array\r\n");
     displayImages(gImage_7in5_V2_b, gImage_7in5_V2_ry);
     delay(2000);
-    printf("exit : show image for array\r\n");
+    Debug("exit : show image for array\r\n");
 #endif
 
 #if 0   // Drawing on the image
@@ -123,7 +121,7 @@ int displayTest(void)
     delay(2000);
 #endif
 
-    displayClear();
+    clearToAllWhite();
 
     free(BlackImage);
     free(RYImage);

@@ -16,7 +16,7 @@
 
 void Wait4Idle(void);
 extern int displayTest(void);
-#define LINE  printf("%s:%d\n", __FUNCTION__, __LINE__)
+#define LINE  Debug("%s:%d\n", __FUNCTION__, __LINE__)
 
 #include <SPI.h>
 
@@ -81,7 +81,7 @@ void setup() {
 
     //initialise two instances of the SPIClass attached to VSPI and HSPI respectively
     vspi = new SPIClass(VSPI);
-    printf("verify that this is NOT 14   xxx = %d\n", vspi->pinSS());
+    Debug("verify that this is NOT 14   xxx = %d\n", vspi->pinSS());
 
     WAIT4USER();
 
@@ -94,34 +94,37 @@ void setup() {
     //doesn't handle automatically pulling SS low
     pinMode(vspi->pinSS(), OUTPUT); //VSPI SS
 
-    printf("verify that this is NOT 14   xxx = %d\n", vspi->pinSS());
+    Debug("verify that this is NOT 14   xxx = %d\n", vspi->pinSS());
     WAIT4USER();
 
-    printf("hw init done\n");
+    Debug("hw init done\n");
     WAIT4USER();
 
     while(true)
     {
 
         displayInit();
-        printf("%s:%d\n", __FUNCTION__, __LINE__);
+        Debug("%s:%d\n", __FUNCTION__, __LINE__);
 
-        displayAllBlack();
+        clearToAllWhite();
         delay(3000);
 
-        displayAllRed();
+        clearToAllBlack();
         delay(3000);
 
-        printf("built on %s %s\n", __DATE__, __TIME__);
+        clearToAllRed();
+        delay(3000);
+
+        Debug("built on %s %s\n", __DATE__, __TIME__);
 
         displayTest();   // call Waveshare test routines
 
-        printf("power shut down in 10 seconds\n");
+        Debug("power shut down in 10 seconds\n");
         displaySleep();
         delay(10000);
 
 
-        printf("here we go again....\n");
+        Debug("here we go again....\n");
      }
 }
 
@@ -136,6 +139,7 @@ int keypress(const char *file, int lineno)
     }
 
     int key =  (Serial.read());
+    Serial.println("");
     return key;
 
 }
@@ -228,7 +232,7 @@ void sendCommand(uint8_t data)
             msg = "(UNKNOWN)";
         break;
     }
-    printf ("\t\t%s 0x%02X %s\n", __FUNCTION__, data, msg);
+    Debug ("\t\t%s 0x%02X %s\n", __FUNCTION__, data, msg);
 
 }
 void sendData(uint8_t data)
@@ -377,7 +381,7 @@ void Wait4Idle(void)
             p2p = (peak_hi - peak_lo) / 4;
             slice = peak_lo + p2p;   // noise is on the first half, move lower
 
-            printf("moved hi = %3.2fv            slice = %3.2f\n",
+            Debug("moved hi = %3.2fv            slice = %3.2f\n",
             BINARY2VOLT(peak_hi), BINARY2VOLT(slice));
             delay(500);
         }
@@ -387,7 +391,7 @@ void Wait4Idle(void)
             p2p = (peak_hi - peak_lo) / 4;
             slice = peak_lo + p2p;   // noise is on the first half, move lower
 
-            printf("moved =          lo =%3.2fv  slice = %3.2f\n",
+            Debug("moved =          lo =%3.2fv  slice = %3.2f\n",
             BINARY2VOLT(peak_lo), BINARY2VOLT(slice));
             delay(500);
         }
@@ -412,10 +416,19 @@ parameter:
 ******************************************************************************/
 static void displayTurnOn(void)
 {
-    digitalWrite(VSPI_POWER, 1);// apply power to the display
-    printf ("display turn on / refresh\n");
+    digitalWrite(VSPI_POWER, 1);// ensure power to the display
+    Debug ("\n%s : start painting hardware\n", __FUNCTION__);
+
     sendCommand(0x12);	        //DISPLAY REFRESH
-    delay(100);	                //!!!The delay here is necessary, 200uS at least!!!
+
+    // allow the display to paint, it can take up to 26 seconds.
+    // this way when returning to caller, any "delay calls" will be from the
+    // time the display is finished physically updating.
+
+    Wait4Idle();                //let the display paint!!!
+    Debug ("%s : display physically repainted\n\n", __FUNCTION__);
+
+    WAIT4USER();
 }
 
 /******************************************************************************
@@ -432,7 +445,7 @@ uint8_t displayInit(void)
     displayReset();
     WAIT4USER();
 
-    printf("starting init byte by byte\n");
+    Debug("starting init byte by byte\n");
     sendCommand(0x01);			//POWER SETTING
     sendData(0x07);
     sendData(0x07);    //VGH=20V,VGL=-20V
@@ -470,77 +483,71 @@ uint8_t displayInit(void)
     return 0;
 }
 
-/******************************************************************************
-function :	Clear screen
-parameter:
-******************************************************************************/
-void displayClear(void)
+void setRedBuffer(uint8_t brightness) // 0 = white
 {
     uint32_t Width, Height;
+    Debug("%s set red intensity to %d\n", __FUNCTION__, brightness);
+
     Width =(EPD_7IN5B_V2_WIDTH % 8 == 0)?(EPD_7IN5B_V2_WIDTH / 8 ):(EPD_7IN5B_V2_WIDTH / 8 + 1);
     Height = EPD_7IN5B_V2_HEIGHT;
 
-    uint32_t i;
-    printf ("clearing black \n");
-    sendCommand(0x10);
-    for(i=0; i<Width*Height; i++) {
-        sendData(0xff);
-
-    }
-    printf ("clearing red \n");
+    // red buffer to red intensity
     sendCommand(0x13);
-    for(i=0; i<Width*Height; i++)	{
-        sendData(0x00);
+    for(int i=0; i<Width*Height; i++)	{
+        sendData(brightness);
 
     }
-    displayTurnOn();
 }
 
-void displayAllRed(void)
+void setWhiteBuffer(uint8_t brightness) // 0 = white
 {
     uint32_t Width, Height;
-    printf("enter %s:%d\n", __FUNCTION__, __LINE__);
+    Debug("%s set white intensity to %d\n", __FUNCTION__, brightness);
 
     Width =(EPD_7IN5B_V2_WIDTH % 8 == 0)?(EPD_7IN5B_V2_WIDTH / 8 ):(EPD_7IN5B_V2_WIDTH / 8 + 1);
     Height = EPD_7IN5B_V2_HEIGHT;
 
-    uint32_t i;
+    // black buffer to black intensity
     sendCommand(0x10);
-    for(i=0; i<Width*Height; i++) {
-        sendData(0xff);
+    for(int i=0; i<Width*Height; i++)	{
+        sendData(brightness);
 
     }
-    sendCommand(0x13);
-    for(i=0; i<Width*Height; i++)	{
-        sendData(0xff);
+}
 
-    }
+
+void clearToAllRed(void)
+{
+    Debug("%s:%d\n", __FUNCTION__, __LINE__);
+
+    setWhiteBuffer(0x00);
+    setRedBuffer(0xFF);
+
+    Debug("red on for 2 seconds .... %s:%d\n", __FUNCTION__, __LINE__);
     displayTurnOn();
     delay(2000);
-    printf("exit %s:%d\n", __FUNCTION__, __LINE__);
 }
 
-void displayAllBlack(void)
+void clearToAllWhite(void)
 {
-    uint32_t Width, Height;
+    Debug("%s:%d\n", __FUNCTION__, __LINE__);
 
-    printf("%s:%d\n", __FUNCTION__, __LINE__);
+    setWhiteBuffer(0xFF);
+    setRedBuffer(0x00);
 
-    Width =(EPD_7IN5B_V2_WIDTH % 8 == 0)?(EPD_7IN5B_V2_WIDTH / 8 ):(EPD_7IN5B_V2_WIDTH / 8 + 1);
-    Height = EPD_7IN5B_V2_HEIGHT;
-
-    uint32_t i;
-    sendCommand(0x10);
-    for(i=0; i<Width*Height; i++) {
-        sendData(0x00);
-
-    }
-    sendCommand(0x13);
-    for(i=0; i<Width*Height; i++)	{
-        sendData(0x00);
-
-    }
     displayTurnOn();
+    delay(2000);
+}
+
+void clearToAllBlack(void)
+{
+    Debug("%s:%d\n", __FUNCTION__, __LINE__);
+
+    setWhiteBuffer(0x00);
+    setRedBuffer(0x00);
+
+    displayTurnOn();
+    delay(2000);
 }
 
 
@@ -582,7 +589,7 @@ void displaySleep(void)
     sendCommand(0X07);  	//deep sleep
     sendData(0xA5);
 
-    printf("%s h/w power down\n", __FUNCTION__);
+    Debug("%s h/w power down\n", __FUNCTION__);
     digitalWrite(VSPI_POWER, 0);     // remove display power
 
 }

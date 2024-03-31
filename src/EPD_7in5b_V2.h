@@ -41,9 +41,8 @@
 #define EPD_7IN5B_V2_HEIGHT      480
 
 uint8_t displayInit(void);
-void displayClear(void);
-void displayAllRed(void);
-void displayAllBlack(void);
+void clearToAllRed(void);
+void clearToAllWhite(void);
 void displayImages(const uint8_t *blackimage, const uint8_t *ryimage);
 void displaySleep(void);
 
