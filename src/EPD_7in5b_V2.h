@@ -42,8 +42,8 @@
 
 uint8_t displayInit(void);
 void displayClear(void);
-void displayClearRed(void);
-void displayClearBlack(void);
+void displayAllRed(void);
+void displayAllBlack(void);
 void displayImages(const uint8_t *blackimage, const uint8_t *ryimage);
 void displaySleep(void);
 

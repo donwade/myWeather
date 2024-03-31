@@ -34,32 +34,28 @@
 
 int displayTest(void)
 {
-    printf("displayTest Demo\r\n");
-//    if(DEV_Module_Init()!=0){
-//        return -1;
-//    }
+    printf("epaper test by WaveShare\r\n");
 
-    printf("e-Paper Init and Clear...\r\n");
-    displayInit();
+    //displayInit(); done earlier
 
-	struct timespec start={0,0}, finish={0,0};
-    clock_gettime(CLOCK_REALTIME,&start);
     displayClear();
-    clock_gettime(CLOCK_REALTIME,&finish);
-    printf("%ld S\r\n",finish.tv_sec-start.tv_sec);
-    delay(500);
+	delay(2000);
 
     //Create a new image cache named IMAGE_BW and fill it with white
     uint8_t *BlackImage, *RYImage;
+
     uint32_t Imagesize = ((EPD_7IN5B_V2_WIDTH % 8 == 0)? (EPD_7IN5B_V2_WIDTH / 8 ): (EPD_7IN5B_V2_WIDTH / 8 + 1)) * EPD_7IN5B_V2_HEIGHT;
+
     if((BlackImage = (uint8_t *)malloc(Imagesize)) == NULL) {
         printf("Failed to apply for black memory...\r\n");
         return -1;
     }
+
     if((RYImage = (uint8_t *)malloc(Imagesize)) == NULL) {
         printf("Failed to apply for red memory...\r\n");
         return -1;
     }
+
     printf("NewImage:BlackImage and RYImage\r\n");
     Paint_NewImage(BlackImage, EPD_7IN5B_V2_WIDTH, EPD_7IN5B_V2_HEIGHT , 0, WHITE);
     Paint_NewImage(RYImage, EPD_7IN5B_V2_WIDTH, EPD_7IN5B_V2_HEIGHT , 0, WHITE);
@@ -71,6 +67,7 @@ int displayTest(void)
     Paint_Clear(WHITE);
 
 #if 0   // show bmp
+	# no sd card or fs on my system.
     printf("show window BMP-----------------\r\n");
     Paint_SelectImage(BlackImage);
     GUI_ReadBmp("./pic/2in9.bmp", 50, 100);
@@ -90,12 +87,13 @@ int displayTest(void)
 #endif
 
 #if 1   // show image for array
-    printf("show image for array\r\n");
+    printf("enter: show image for array\r\n");
     displayImages(gImage_7in5_V2_b, gImage_7in5_V2_ry);
     delay(2000);
+    printf("exit : show image for array\r\n");
 #endif
 
-#if 1   // Drawing on the image
+#if 0   // Drawing on the image
     /*Horizontal screen*/
     //1.Draw black image
     Paint_SelectImage(BlackImage);
@@ -121,12 +119,10 @@ int displayTest(void)
     Paint_DrawString_EN(10, 20, "hello world", &Font12, WHITE, BLACK);
     Paint_DrawNum(10, 33, 123456789, &Font12, BLACK, WHITE);
 
-    printf("EPD_Display\r\n");
     displayImages(BlackImage, RYImage);
     delay(2000);
 #endif
 
-    printf("Clear...\r\n");
     displayClear();
 
     free(BlackImage);
@@ -134,11 +130,6 @@ int displayTest(void)
 
     BlackImage = NULL;
     RYImage = NULL;
-
-    delay(2000);//important, at least 2s
-    // close 5V
-    printf("DISABLED close 5V, Module enters 0 power consumption ...\r\n");
-    //displaySleep();
 
     return 0;
 }

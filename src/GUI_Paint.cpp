@@ -26,7 +26,7 @@
 * 2. Add void Paint_SetScale(uint8_t scale);
 * -----------------------------------------------------------------------------
 * V3.0(2019-04-18):
-* 1.Change: 
+* 1.Change:
 *    Paint_DrawPoint(..., DOT_STYLE DOT_STYLE)
 * => Paint_DrawPoint(..., DOT_STYLE Dot_Style)
 *    Paint_DrawLine(..., LINE_STYLE Line_Style, DOT_PIXEL Dot_Pixel)
@@ -43,16 +43,16 @@
 * 2.add: Paint_SelectImage()
 *    Select the picture to be drawn
 * 3.add: Paint_SetRotate()
-*    Set the direction of the cache    
-* 4.add: Paint_RotateImage() 
-*    Can flip the picture, Support 0-360 degrees, 
+*    Set the direction of the cache
+* 4.add: Paint_RotateImage()
+*    Can flip the picture, Support 0-360 degrees,
 *    but only 90.180.270 rotation is better
-* 4.add: Paint_SetMirroring() 
+* 4.add: Paint_SetMirroring()
 *    Can Mirroring the picture, horizontal, vertical, origin
-* 5.add: Paint_DrawString_CN() 
-*    Can display Chinese(GB1312)   
+* 5.add: Paint_DrawString_CN()
+*    Can display Chinese(GB1312)
 *
-* ----------------------------------------------------------------------------- 
+* -----------------------------------------------------------------------------
 * V1.0(2018-07-17):
 *   Create library
 *
@@ -100,16 +100,16 @@ void Paint_NewImage(uint8_t *image, uint32_t Width, uint32_t Height, uint32_t Ro
 
     Paint.WidthMemory = Width;
     Paint.HeightMemory = Height;
-    Paint.Color = Color;    
+    Paint.Color = Color;
     Paint.Scale = 2;
     Paint.WidthByte = (Width % 8 == 0)? (Width / 8 ): (Width / 8 + 1);
-    Paint.HeightByte = Height;    
-//    printf("WidthByte = %d, HeightByte = %d\r\n", Paint.WidthByte, Paint.HeightByte);
-//    printf(" EPD_WIDTH / 8 = %d\r\n",  122 / 8);
-   
+    Paint.HeightByte = Height;
+    printf("WidthByte = %d, HeightByte = %d\r\n", Paint.WidthByte, Paint.HeightByte);
+    printf(" EPD_WIDTH / 8 = %d\r\n",  122 / 8);
+
     Paint.Rotate = Rotate;
     Paint.Mirror = MIRROR_NONE;
-    
+
     if(Rotate == ROTATE_0 || Rotate == ROTATE_180) {
         Paint.Width = Width;
         Paint.Height = Height;
@@ -151,14 +151,14 @@ parameter:
 ******************************************************************************/
 void Paint_SetMirroring(uint8_t mirror)
 {
-    if(mirror == MIRROR_NONE || mirror == MIRROR_HORIZONTAL || 
+    if(mirror == MIRROR_NONE || mirror == MIRROR_HORIZONTAL ||
         mirror == MIRROR_VERTICAL || mirror == MIRROR_ORIGIN) {
         Debug("mirror image x:%s, y:%s\r\n",(mirror & 0x01)? "mirror":"none", ((mirror >> 1) & 0x01)? "mirror":"none");
         Paint.Mirror = mirror;
     } else {
         Debug("mirror should be MIRROR_NONE, MIRROR_HORIZONTAL, \
         MIRROR_VERTICAL or MIRROR_ORIGIN\r\n");
-    }    
+    }
 }
 
 void Paint_SetScale(uint8_t scale)
@@ -191,12 +191,12 @@ void Paint_SetPixel(uint32_t Xpoint, uint32_t Ypoint, uint32_t Color)
     if(Xpoint > Paint.Width || Ypoint > Paint.Height){
         Debug("Exceeding display boundaries\r\n");
         return;
-    }      
+    }
     uint32_t X, Y;
     switch(Paint.Rotate) {
     case 0:
         X = Xpoint;
-        Y = Ypoint;  
+        Y = Ypoint;
         break;
     case 90:
         X = Paint.WidthMemory - Ypoint - 1;
@@ -213,7 +213,7 @@ void Paint_SetPixel(uint32_t Xpoint, uint32_t Ypoint, uint32_t Color)
     default:
         return;
     }
-    
+
     switch(Paint.Mirror) {
     case MIRROR_NONE:
         break;
@@ -235,7 +235,7 @@ void Paint_SetPixel(uint32_t Xpoint, uint32_t Ypoint, uint32_t Color)
         Debug("Exceeding display boundaries\r\n");
         return;
     }
-    
+
     if(Paint.Scale == 2){
         uint32_t Addr = X / 8 + Y * Paint.WidthByte;
         uint8_t Rdata = Paint.Image[Addr];
@@ -264,28 +264,28 @@ parameter:
     Color : Painted colors
 ******************************************************************************/
 void Paint_Clear(uint32_t Color)
-{	
+{
 	if(Paint.Scale == 2) {
 		for (uint32_t Y = 0; Y < Paint.HeightByte; Y++) {
 			for (uint32_t X = 0; X < Paint.WidthByte; X++ ) {//8 pixel =  1 byte
 				uint32_t Addr = X + Y*Paint.WidthByte;
 				Paint.Image[Addr] = Color;
 			}
-		}		
+		}
     }else if(Paint.Scale == 4) {
         for (uint32_t Y = 0; Y < Paint.HeightByte; Y++) {
 			for (uint32_t X = 0; X < Paint.WidthByte; X++ ) {
 				uint32_t Addr = X + Y*Paint.WidthByte;
 				Paint.Image[Addr] = (Color<<6)|(Color<<4)|(Color<<2)|Color;
 			}
-		}		
+		}
 	}else if(Paint.Scale == 7 || Paint.Scale == 16) {
 		for (uint32_t Y = 0; Y < Paint.HeightByte; Y++) {
 			for (uint32_t X = 0; X < Paint.WidthByte; X++ ) {
 				uint32_t Addr = X + Y*Paint.WidthByte;
 				Paint.Image[Addr] = (Color<<4)|Color;
 			}
-		}		
+		}
 	}
 }
 
@@ -724,7 +724,7 @@ void Paint_DrawNum(uint32_t Xpoint, uint32_t Ypoint, int32_t Nummber,
         Num_Bit++;
         Nummber /= 10;
     } while(Nummber);
-    
+
 
     //The string is inverted
     while (Num_Bit > 0) {
@@ -762,7 +762,7 @@ void Paint_DrawNumDecimals(uint32_t Xpoint, uint32_t Ypoint, double Nummber,
         return;
     }
 
-	if(Digit > 0) {		
+	if(Digit > 0) {
 		decimals = Nummber - temp;
 		for(i=Digit; i > 0; i--) {
 			decimals*=10;
@@ -772,8 +772,8 @@ void Paint_DrawNumDecimals(uint32_t Xpoint, uint32_t Ypoint, double Nummber,
 		for(i=Digit; i>0; i--) {
 			Num_Array[Num_Bit] = temp % 10 + '0';
 			Num_Bit++;
-			temp /= 10;						
-		}	
+			temp /= 10;
+		}
 		Num_Array[Num_Bit] = '.';
 		Num_Bit++;
 	}

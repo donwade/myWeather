@@ -14,11 +14,14 @@
  * created 30/04/2018 by Alistair Symonds
  */
 
-void Wait4Idle(uint32_t line);
+void Wait4Idle(void);
 extern int displayTest(void);
 #define LINE  printf("%s:%d\n", __FUNCTION__, __LINE__)
 
 #include <SPI.h>
+
+#define DEBUG 1
+#include "Debug.h"
 
 // Define ALTERNATE_PINS to use non-standard GPIO pins for SPI bus
 #define ALTERNATE_PINS
@@ -29,24 +32,58 @@ extern int displayTest(void);
 #define VSPI_SS     13 //33
 
 #define VSPI_DC     22  // data or command
-#define VSPI_BUSY   14
+#define VSPI_BUSY   14  //14
 #define VSPI_RST    21
 #define VSPI_POWER  26
 
 #if CONFIG_IDF_TARGET_ESP32S2 || CONFIG_IDF_TARGET_ESP32S3
 #define VSPI FSPI
+#error what does this mean?
 #endif
 
 #define Debug printf
-static const int spiClk = 1000000; // 1 MHz
+static const int spiClk = 1000000; // 1 MHz 10Mhz TOOO FAST
 
 //uninitalised pointers to SPI objects
 SPIClass * vspi = NULL;
 
 void setup() {
     Serial.begin(115200);
+    delay(100);
+    Serial.println("");
+    Serial.println("----------------------------------");
+    Serial.println("start");
+
+    WAIT4USER();
+    #if 1
+        adcAttachPin(VSPI_BUSY);
+    #else
+        pinMode(VSPI_BUSY, INPUT);    // set data/command pin to output mode
+    #endif
+
+    WAIT4USER();
+
+    pinMode(VSPI_POWER, OUTPUT);    // apply power pin
+    WAIT4USER();
+
+    digitalWrite(VSPI_POWER, 1);// apply power to the display
+    WAIT4USER();
+
+    pinMode(VSPI_RST, OUTPUT);    // reset ?
+    digitalWrite(VSPI_RST, 1);    // into reset
+    delay(2);
+    digitalWrite(VSPI_RST, 0);    // out of reset
+    WAIT4USER();
+
+    pinMode(VSPI_DC, OUTPUT);     // set data/command pin to output mode
+    WAIT4USER();
+
+
     //initialise two instances of the SPIClass attached to VSPI and HSPI respectively
     vspi = new SPIClass(VSPI);
+    printf("verify that this is NOT 14   xxx = %d\n", vspi->pinSS());
+
+    WAIT4USER();
 
     //clock miso mosi ss
 
@@ -57,42 +94,52 @@ void setup() {
     //doesn't handle automatically pulling SS low
     pinMode(vspi->pinSS(), OUTPUT); //VSPI SS
 
-    pinMode(VSPI_POWER, OUTPUT);    // reset ?
-    pinMode(VSPI_RST, OUTPUT);    // reset ?
-    pinMode(VSPI_DC, OUTPUT);     // set data/command pin to output mode
-    pinMode(VSPI_BUSY, INPUT);    // set data/command pin to output mode
-    printf("\n");
+    printf("verify that this is NOT 14   xxx = %d\n", vspi->pinSS());
+    WAIT4USER();
+
+    printf("hw init done\n");
+    WAIT4USER();
+
     while(true)
     {
 
         displayInit();
         printf("%s:%d\n", __FUNCTION__, __LINE__);
 
-        Wait4Idle(__LINE__);
+        displayAllBlack();
+        delay(3000);
 
-        displayClearBlack();
-        printf("%s:%d\n", __FUNCTION__, __LINE__);
-        Wait4Idle(__LINE__);
-        delay(5000);
+        displayAllRed();
+        delay(3000);
 
-        displayClearRed();
-        printf("%s:%d\n", __FUNCTION__, __LINE__);
-        Wait4Idle(__LINE__);
-        delay(1000);
-
-        Serial.println();
-        Serial.println("HI MOM");
         printf("built on %s %s\n", __DATE__, __TIME__);
 
-        displayTest();
+        displayTest();   // call Waveshare test routines
 
+        printf("power shut down in 10 seconds\n");
         displaySleep();
-        LINE;
-        printf("shutting down in 10 seconds\n");
         delay(10000);
+
+
         printf("here we go again....\n");
      }
 }
+
+//---------------------------------------------------------------------------------------
+
+int keypress(const char *file, int lineno)
+{
+    printf("waiting for keypress at %s:%d\n", file, lineno);
+    while (!Serial.available())
+    {
+        delay(1);
+    }
+
+    int key =  (Serial.read());
+    return key;
+
+}
+
 
 // the loop function runs over and over again until power down or reset
 void loop() {
@@ -111,26 +158,86 @@ void doSpiXfer(SPIClass *spi, uint8_t data)
   digitalWrite(spi->pinSS(), HIGH); //pull ss high to signify end of data transfer
   spi->endTransaction();
 }
+
 //---------------------------------------------------------------------------------------
 void sendCommand(uint8_t data)
 {
     static uint32_t cnt;
     cnt++;
-    while( digitalRead(VSPI_BUSY) == 0);
+    char *msg;
 
-    digitalWrite(VSPI_DC, 0);
-    printf("%s #%d %d 0x%X\n", __FUNCTION__, cnt, data, data);
+    digitalWrite(VSPI_DC, 0);   // set to 0 for command transfer
+
+    //while( !digitalRead(VSPI_BUSY)){}; //prevent sending if busy
+    Wait4Idle();
+
     doSpiXfer(vspi,data);
-    digitalWrite(VSPI_DC, 1); // not really needed
+
+    switch(data)
+    {
+        case 0:
+            msg = "(PSR) panel setting register";
+        break;
+
+        case 1:
+            msg = "(PWR) panel setting";
+        break;
+
+        case 2:
+            msg = "(PWR) power setting";
+        break;
+
+        case 4:
+            msg = "(PFS) power off seequence";
+        break;
+
+        case 7:
+            msg = "(DSLP) deep sleep";
+        break;
+
+
+        case 0x10:
+            msg = "(DTM1)start data xmit black buffer";
+        break;
+
+        case 0x12:
+             msg = "(DRF) display refresh";
+        break;
+
+        case 0x13:
+            msg = "(DTM2) start data xmit red buffer";
+        break;
+
+        case 0x50:
+             msg = "(CDI) vert horiz timing";
+        break;
+
+        case 0x60:
+            msg = "(TCON) gates";
+        break;
+
+        case 0x61:
+            msg = "(TRES) resolution setting";
+        break;
+
+        case 0x65:
+            msg = "(GSST) gate start setting";
+        break;
+
+        default:
+            msg = "(UNKNOWN)";
+        break;
+    }
+    printf ("\t\t%s 0x%02X %s\n", __FUNCTION__, data, msg);
+
 }
 void sendData(uint8_t data)
 {
-    static uint32_t cnt;
-    while( digitalRead(VSPI_BUSY) == 0);
-    cnt++;
-    digitalWrite(VSPI_DC, 0);  // debug only for scope (not really needed)
-    digitalWrite(VSPI_DC, 1);
-    //printf("%s #%d  %d 0x%X\n", __FUNCTION__, cnt, data, data);
+    digitalWrite(VSPI_DC, 1);  // set to 1 for data transfer
+
+    Wait4Idle();
+    //while( !digitalRead(VSPI_BUSY)){}; //prevent sending if busy
+
     doSpiXfer(vspi,data);
 }
 
@@ -181,7 +288,6 @@ static void displayReset(void)
     delay(2);
     digitalWrite(VSPI_RST, 1);
     delay(200);
-    Wait4Idle(__LINE__);
 }
 
 /******************************************************************************
@@ -226,19 +332,77 @@ working such as:
 -Communicating with digital temperature sensor
 */
 
-void Wait4Idle(uint32_t line)
+#define MAX_VCC 3.1
+#define VOLT2BINARY(x)  ((x) / MAX_VCC * 4096.)
+#define BINARY2VOLT(x)  ( (float)(x) / 4096. * MAX_VCC)
+
+static uint16_t peak_lo = 4096;
+static uint16_t peak_hi = 0;
+static uint16_t slice = VOLT2BINARY(.8);
+
+void Wait4Idle(void)
 {
+#if 0
+    struct timespec start={0,0}, finish={0,0};
+    clock_gettime(CLOCK_REALTIME,&start);
+
+    int32_t cnt = 0;
     bool pin;
-    pin = digitalRead(VSPI_BUSY);
-    Debug("%s ENTER @ %d pin = %d\r\n", __FUNCTION__, line, pin);
 
-	do	{
-		delay(20);
-        pin = digitalRead(VSPI_BUSY);
-	}while(!pin);
+    if (digitalRead(VSPI_BUSY)) return;
 
-	delay(20);
-	Debug("%s EXIT at %d pin = %d\r\n", __FUNCTION__,  line, pin);
+    // busy on entry.... profile it.
+    if (digitalRead(VSPI_BUSY) != 1)
+    {
+    	do	{
+    		delay(1);
+            pin = digitalRead(VSPI_BUSY);
+    	}while(!pin);
+    }
+
+    clock_gettime(CLOCK_REALTIME,&finish);
+
+    Debug("busy for %ld mS\r\n",( (finish.tv_sec - start.tv_sec) + 1.0e-9 * (finish.tv_nsec  -
+    start.tv_nsec)) / 1000);
+#else
+    uint16_t adc;
+    uint16_t p2p;
+
+    do {
+        adc = analogRead(VSPI_BUSY);
+
+        if (adc > peak_hi)
+        {
+            peak_hi = adc; //+= VOLT2BINARY(.1);
+            p2p = (peak_hi - peak_lo) / 4;
+            slice = peak_lo + p2p;   // noise is on the first half, move lower
+
+            printf("moved hi = %3.2fv            slice = %3.2f\n",
+            BINARY2VOLT(peak_hi), BINARY2VOLT(slice));
+            delay(500);
+        }
+        if (adc < peak_lo)
+        {
+            peak_lo = adc; //-= VOLT2BINARY(.1); // --;  //= adc;
+            p2p = (peak_hi - peak_lo) / 4;
+            slice = peak_lo + p2p;   // noise is on the first half, move lower
+
+            printf("moved =          lo =%3.2fv  slice = %3.2f\n",
+            BINARY2VOLT(peak_lo), BINARY2VOLT(slice));
+            delay(500);
+        }
+
+    } while (adc < slice);
+
+/*
+    printf("peak_lo = %3.2fv hi = %3.2fv adc > slice (%3.2fv > %3.2fv)\n",
+        BINARY2VOLT(peak_lo),
+        BINARY2VOLT(peak_hi),
+        BINARY2VOLT(adc),
+        BINARY2VOLT(slice)
+    );
+*/
+#endif
 }
 
 
@@ -252,7 +416,6 @@ static void displayTurnOn(void)
     printf ("display turn on / refresh\n");
     sendCommand(0x12);	        //DISPLAY REFRESH
     delay(100);	                //!!!The delay here is necessary, 200uS at least!!!
-    Wait4Idle(__LINE__);
 }
 
 /******************************************************************************
@@ -263,10 +426,13 @@ uint8_t displayInit(void)
 {
 
     digitalWrite(VSPI_POWER, 1);     // apply power to the display
+    WAIT4USER();
     delay(300);
 
     displayReset();
+    WAIT4USER();
 
+    printf("starting init byte by byte\n");
     sendCommand(0x01);			//POWER SETTING
     sendData(0x07);
     sendData(0x07);    //VGH=20V,VGL=-20V
@@ -275,7 +441,6 @@ uint8_t displayInit(void)
 
     sendCommand(0x04); //POWER ON
     delay(100);
-    Wait4Idle(__LINE__);
 
     sendCommand(0X00);	//PANNEL SETTING
     sendData(0x0F);     //KW-3f   KWR-2F	BWROTP 0f	BWOTP 1f
@@ -316,13 +481,13 @@ void displayClear(void)
     Height = EPD_7IN5B_V2_HEIGHT;
 
     uint32_t i;
-    printf ("clear black \n");
+    printf ("clearing black \n");
     sendCommand(0x10);
     for(i=0; i<Width*Height; i++) {
         sendData(0xff);
 
     }
-    printf ("clear red \n");
+    printf ("clearing red \n");
     sendCommand(0x13);
     for(i=0; i<Width*Height; i++)	{
         sendData(0x00);
@@ -331,10 +496,10 @@ void displayClear(void)
     displayTurnOn();
 }
 
-void displayClearRed(void)
+void displayAllRed(void)
 {
     uint32_t Width, Height;
-    printf("%s:%d\n", __FUNCTION__, __LINE__);
+    printf("enter %s:%d\n", __FUNCTION__, __LINE__);
 
     Width =(EPD_7IN5B_V2_WIDTH % 8 == 0)?(EPD_7IN5B_V2_WIDTH / 8 ):(EPD_7IN5B_V2_WIDTH / 8 + 1);
     Height = EPD_7IN5B_V2_HEIGHT;
@@ -351,9 +516,11 @@ void displayClearRed(void)
 
     }
     displayTurnOn();
+    delay(2000);
+    printf("exit %s:%d\n", __FUNCTION__, __LINE__);
 }
 
-void displayClearBlack(void)
+void displayAllBlack(void)
 {
     uint32_t Width, Height;
 
@@ -375,6 +542,7 @@ void displayClearBlack(void)
     }
     displayTurnOn();
 }
+
 
 /******************************************************************************
 function :	Sends the image buffer in RAM to e-Paper and displays
@@ -410,18 +578,11 @@ parameter:
 ******************************************************************************/
 void displaySleep(void)
 {
-    LINE;
     sendCommand(0X02);  	//power off
-    LINE;
-    Wait4Idle(__LINE__);
-    LINE;
     sendCommand(0X07);  	//deep sleep
-    LINE;
     sendData(0xA5);
-    LINE;
 
     printf("%s h/w power down\n", __FUNCTION__);
     digitalWrite(VSPI_POWER, 0);     // remove display power
-    LINE;
 
 }
