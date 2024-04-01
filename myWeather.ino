@@ -101,7 +101,7 @@ void setup() {
     Debug("hw init done\n");
     WAIT4USER();
 
-    while(true)
+    //while(true)
     {
 
         displayInit();
@@ -125,7 +125,7 @@ void setup() {
         delay(10000);
 
 
-        Debug("here we go again....\n");
+        Debug("Say goodnite dick....\n");
      }
 }
 
